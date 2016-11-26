@@ -12,12 +12,24 @@ static enum GamePages
   NumberOfPages = 5,
 } gameUiPage = Welcome;
 
+//Bottom button: gameInputState.buttons[0]
+//Top button: gameInputState.buttons[1]
+//Switches: down is 0, up is 1
+//Left switch: gameInputState.switches[1]
+//Right switch: gameInputState.switches[0]
+//Potentiometer: 0 - 4095
+
+#define RED RED_LED
+#define GREEN GREEN_LED
 const uint32_t SwitchCount = 2;
 const uint32_t ButtonCount = 2;
 const uint32_t Switches[SwitchCount] = { PA_7, PA_6 };
 const uint32_t Buttons[ButtonCount] = { PD_2, PE_0 };
 const uint32_t Potentiometer = PE_3;
 const size_t   MaximumPlayers = 6;
+
+
+//Need to handle - if hearts below a certain level, change LED to red
 
 struct ButtonState
 { 
@@ -32,6 +44,54 @@ typedef enum Action
   Scissor = 2,
   ActionCount = 3,
 } Action;
+
+
+static enum LifeStages
+{
+  Egg = 0,
+  Baby = 1,
+  Teen = 2,
+  Adult = 3,
+  Senior = 4,
+  NumberOfAges = 5,
+} currentLife = Egg;
+
+void drawPlayer{
+  switch(currentLife)
+    {
+    case Egg:
+      OrbitOledDrawChar('R');
+      break;
+    case Baby:
+      OrbitOledDrawChar('P');
+      break;
+    case Teen:
+      OrbitOledDrawChar('S');
+      break;
+      case Adult:
+      OrbitOledDrawChar('S');
+      break;
+      case Senior:
+      OrbitOledDrawChar('S');
+      break;
+    }
+}
+
+struct PlayerStats
+{
+  int age;
+  //Hunger ranges from 0 to 5
+  int hunger;
+  int hungerCounter;
+  //Happiness ranges from 0 to 5 - can be obtained from playing games and buying gifts
+  int happy;
+  int happyCounter;
+  //Number of poos onscreen ranges from 0 to 10
+  int toilet;
+  int toiletCounter;
+  //Money can be obtained from playing games
+  int money;
+}Player;
 
 struct GameState
 {
@@ -63,6 +123,60 @@ void GameUIInit()
     pinMode(Switches[i], INPUT);
   for(int i = 0; i < ButtonCount; ++i )
     pinMode(Buttons[i], INPUT);
+
+    pinMode(LED,OUTPUT);
+
+    
+}
+static void uiInputTick()
+{
+  for(int i = 0; i < SwitchCount; ++i )
+    gameInputState.switches[i] = digitalRead(Switches[i]);
+  for(int i = 0; i < ButtonCount; ++i )
+  {
+    // Only look for Rising Edge Signals.
+    bool previousState = gameInputState.buttons[i].state;
+    gameInputState.buttons[i].state = digitalRead(Buttons[i]);
+    gameInputState.buttons[i].isRising = (!previousState && gameInputState.buttons[i].state);
+  }
+  
+  gameInputState.potentiometer = analogRead(Potentiometer);
+  if(ShakeIsShaking())
+    Serial.println("test");
+  Serial.println("Blue");
+  Serial.println(BLUE_LED);
+  Serial.println("Red");
+  Serial.println(RED_LED);
+  Serial.println("Green");
+  Serial.println(GREEN_LED);
+}
+
+void buttonPress()
+{
+  if(gameInputState.buttons[0].isRising)
+  {
+    OrbitOledClearBuffer();
+    OrbitOledClear();
+//    OrbitOledMoveTo(5,0);
+//    OrbitOledDrawChar(gameInputState.switches[0]);
+//    OrbitOledMoveTo(10,15);
+//    OrbitOledDrawChar(gameInputState.switches[1]);
+
+
+    drawHunger(3);
+    OrbitOledUpdate();
+  }
+  else if(gameInputState.buttons[1].isRising)
+  {
+    OrbitOledClearBuffer();
+    OrbitOledClear();
+//    OrbitOledMoveTo(5,0);
+//    OrbitOledDrawChar(gameInputState.switches[0]);
+//    OrbitOledMoveTo(10,15);
+//    OrbitOledDrawChar(gameInputState.switches[1]);
+    drawHappy(3);
+    OrbitOledUpdate();
+  }
 }
 /*
 static void handlePageProgressBar()
