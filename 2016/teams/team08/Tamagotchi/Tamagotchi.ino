@@ -5,6 +5,7 @@
 #include <OrbitOledChar.h>
 #include <OrbitOledGrph.h>
 #include <stdlib.h>
+#include<limits.h>
 
 void WireInit();
 void GameUIInit();
@@ -22,8 +23,11 @@ void setup()
 
   delay(100);
 
-  //ShakeInit();
+  ShakeInit();
   GameUIInit();
+
+//  EggInit();
+  
 
   // Read some analog signal and scale it arbitrarily
   // for random seed.
@@ -32,11 +36,12 @@ void setup()
 
 void loop() 
 {
-  //OrbitOledMoveTo(5, 0);
-  //OrbitOledDrawString("Welcome to RPS");
+  //uiInputTick();
+//  buttonPress();
+  //
   
-  drawSomething();
-  OrbitOledUpdate();
-  //ShakeTick();
- // GameUITick();
+  //drawSomething();
+//  OrbitOledUpdate();
+  ShakeTick();
+  GameUITick();
 }
