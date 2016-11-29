@@ -1,16 +1,6 @@
 #include <stdbool.h>
 #include <string.h>
-
-
-static enum GamePages
-{
-  Welcome       = 0,
-  SelectPlayers = 1,
-  RollPlayer    = 2,
-  GameResult    = 3,
-  Progress      = 4,
-  NumberOfPages = 5,
-} gameUiPage = Welcome;
+#include<limits.h>
 
 //Bottom button: gameInputState.buttons[0]
 //Top button: gameInputState.buttons[1]
@@ -19,34 +9,55 @@ static enum GamePages
 //Right switch: gameInputState.switches[0]
 //Potentiometer: 0 - 4095
 
-#define RED RED_LED
-#define GREEN GREEN_LED
+//gameUiPages
+const uint32_t MainScreen    = 0;  //Displays Tamagotchi and Information
+const uint32_t ShopMenu      = 1;  //Shop for Food or Gifts
+const uint32_t FoodMenu      = 2;  //Can pick among various Foods
+const uint32_t GiftMenu      = 3;  //Can pick among various Gifts
+const uint32_t GameMenu      = 4;  //Can pick among various Games
+const uint32_t GameOver      = 5;  //Game over screen
+const uint32_t StartScreen      = 6;  //Welcome screen (egg hatching)
+/*
+ * GameMenu1 etc
+ * How many games will there be?
+ */
+const uint32_t NumberOfPages = 5;  //To be increased with number of games.
+uint32_t gameUiPage = MainScreen;
+
+int GlobalOption = 0;
+
+//Hardware info
+
 const uint32_t SwitchCount = 2;
 const uint32_t ButtonCount = 2;
-const uint32_t Switches[SwitchCount] = { PA_7, PA_6 };
-const uint32_t Buttons[ButtonCount] = { PD_2, PE_0 };
+const uint32_t Switches[2] = { PA_7, PA_6 };  //List of switches to be used
+const uint32_t Buttons[2] = {PE_0, PD_2 };   //List of Buttons to be used
 const uint32_t Potentiometer = PE_3;
-const size_t   MaximumPlayers = 6;
+const float PotentiometerMaxValue = 4095;
 
+//Approximately 175 loops per second
+const uint32_t secondTick=175;
+const uint32_t hungerLimit=secondTick*60*5; //5 minutes
+const uint32_t happyLimit=secondTick*60*7; //7 minutes
+const uint32_t toiletLimit=secondTick*60*8; //8 minutes
 
-//Need to handle - if hearts below a certain level, change LED to red
+int HUNGER_MIN = 0;
+int HAPPY_MIN = 0;
+const uint32_t TOILET_MAX = 8;
+const uint32_t toiletShakeRequire=50;
 
-struct ButtonState
-{ 
-  bool state;
-  bool isRising;
-};
+const uint32_t foodPrices[6][3]={{100,1,0}, //milk
+                                 {200,2,0}, //bread
+                                 {300,2,1}, //pie
+                                 {400,2,1}, //cherries
+                                 {600,3,2}, //burger
+                                 {200,1,1}}; //drink
+const uint32_t giftSPrices[]={};
 
-typedef enum Action
-{
-  Rock    = 0,
-  Paper   = 1,
-  Scissor = 2,
-  ActionCount = 3,
-} Action;
+//End game
+bool dead=false;
 
-
-static enum LifeStages
+enum LifeStages
 {
   Egg = 0,
   Baby = 1,
@@ -54,52 +65,35 @@ static enum LifeStages
   Adult = 3,
   Senior = 4,
   NumberOfAges = 5,
-} currentLife = Egg;
+};
 
-void drawPlayer{
-  switch(currentLife)
-    {
-    case Egg:
-      OrbitOledDrawChar('R');
-      break;
-    case Baby:
-      OrbitOledDrawChar('P');
-      break;
-    case Teen:
-      OrbitOledDrawChar('S');
-      break;
-      case Adult:
-      OrbitOledDrawChar('S');
-      break;
-      case Senior:
-      OrbitOledDrawChar('S');
-      break;
-    }
-}
-
-struct PlayerStats
+typedef struct PlayerStats
 {
-  int age;
+  //Age ranges from 0 (egg) to 4 (senior)
+  LifeStages age;
   //Hunger ranges from 0 to 5
   int hunger;
-  int hungerCounter;
+  uint32_t hungerCounter;
   //Happiness ranges from 0 to 5 - can be obtained from playing games and buying gifts
   int happy;
-  int happyCounter;
-  //Number of poos onscreen ranges from 0 to 10
+  uint32_t happyCounter;
+  //Number of poos onscreen ranges from 0 to 8
   int toilet;
-  int toiletCounter;
+  uint32_t toiletCounter;
   //Money can be obtained from playing games
-  int money;
+  uint32_t money;
 }Player;
+Player player;
+#define RED RED_LED
+#define GREEN GREEN_LED
 
-struct GameState
+//Need to handle - if hearts below a certain level, change LED to red
+
+struct ButtonState
 {
-  int playerCount;
-  int playerIndex;
-  enum Action playerActions[MaximumPlayers];
-  bool isRolling;
-} activeGame;
+  bool state;
+  bool isRising;
+};
 
 static struct InputState
 {
@@ -108,6 +102,8 @@ static struct InputState
   float               potentiometer;
 } gameInputState;
 
+
+//Initialization
 void GameUIInit()
 {
   OrbitOledInit();
@@ -117,21 +113,178 @@ void GameUIInit()
   OrbitOledSetDrawMode(modOledSet);
 
   gameInputState = { 0 };
-  activeGame = { 0 };
+  player = {Egg,5,0,5,0,0,0,0};
+  //activeGame = { 0 };
 
+
+  //Set the hardware we're using to INPUT mode
   for(int i = 0; i < SwitchCount; ++i )
     pinMode(Switches[i], INPUT);
   for(int i = 0; i < ButtonCount; ++i )
     pinMode(Buttons[i], INPUT);
 
-    pinMode(LED,OUTPUT);
-
-    
+  pinMode(RED,OUTPUT);
+  pinMode(GREEN,OUTPUT); 
 }
+
+void goToPage(int page) {
+  OrbitOledClearBuffer();
+  OrbitOledClear();
+  gameUiPage = page;
+}
+
+int shakeCounter=0;
+
+void handleMainScreen() {
+  //display health/happy statusd
+  //display tamagotchi
+  StatsTick();
+
+  DrawMainScreen(player.hunger, player.happy, player.money, player.toilet, player.age);
+  OrbitOledUpdate();
+
+  if(dead)
+    goToPage(GameOver);
+  //Serial.println(gameInputState.buttons[0].isRising);
+  if (gameInputState.buttons[0].isRising) {
+    goToPage(ShopMenu);
+  }
+  else if (gameInputState.buttons[1].isRising) {
+    goToPage(GameMenu);
+  }
+}
+
+
+
+void StatsTick(){
+  player.hungerCounter++;
+  player.happyCounter++;
+  player.toiletCounter++;
+
+  if(player.hungerCounter>=hungerLimit){
+    player.hunger--;
+    if(player.hunger<HUNGER_MIN)
+      dead=true;
+    player.hungerCounter=0;
+    OrbitOledClearBuffer();
+    OrbitOledClear();
+  }
+  if(player.happyCounter>=happyLimit){
+    player.happy--;
+    if(player.happy<HAPPY_MIN) //player dies when really unhappy...?
+      dead=true;
+    player.happyCounter=0;
+    OrbitOledClearBuffer();
+    OrbitOledClear();
+  }
+  if(player.toiletCounter>=toiletLimit){
+    player.toilet++;
+    if(player.toilet>TOILET_MAX)
+      dead=true;
+    player.toiletCounter=0;
+    OrbitOledClearBuffer();
+    OrbitOledClear();
+  }
+
+  
+  if(ShakeIsShaking()){
+        shakeCounter++;
+  }
+    if(shakeCounter>=toiletShakeRequire)
+    {
+      OrbitOledClearBuffer();
+      OrbitOledClear();
+      player.toilet=0;
+      Serial.println(player.toilet);
+      shakeCounter=0;
+    }
+  
+}
+
+
+void handleShopMenu(){
+  int x=11, y1=5, y2=18, offset=9; //where am I putting this
+  int option = gameInputState.potentiometer/(PotentiometerMaxValue/2+1);
+  if (option != GlobalOption) {
+    OrbitOledClear();
+    GlobalOption = option;
+  }
+  OrbitOledMoveTo(x, y1);
+  OrbitOledDrawString("Food");
+
+  //change x and y coordinates
+  OrbitOledMoveTo(x, y2);
+  OrbitOledDrawString("Gifts");
+
+  //display the arrow
+  OrbitOledMoveTo(x-offset, (option == 0 ? y1 : y2));
+  OrbitOledDrawChar('>');
+
+  if (gameInputState.buttons[0].isRising && option == 0) {
+    goToPage(FoodMenu);
+  }
+  else if (gameInputState.buttons[0].isRising && option == 1) {
+    goToPage(GiftMenu);
+  }
+
+  if (gameInputState.buttons[1].isRising) {
+    goToPage(MainScreen);
+  }
+}
+
+
+int eatFood(int value){
+  player.hunger+=value;
+  if(player.hunger>5)
+    player.hunger=5;
+}
+
+int gainHappy(int value){
+  player.happy+=value;
+  if(player.happy>5)
+    player.happy=5;
+}
+
+void handleFoodMenu() {
+  //display food options
+  //display blablabla
+  int option = gameInputState.potentiometer/(PotentiometerMaxValue/6 + 1.0);
+  if (option != GlobalOption) {
+    OrbitOledClear();
+    GlobalOption = option;
+  }
+  displayFood(option, foodPrices[option][0]);
+  if (gameInputState.buttons[0].isRising) {
+    //lose money
+    if(player.money>=foodPrices[option][0])
+      player.money-=foodPrices[option][0];
+    //display food
+    //isFood = true >> eating animation? >> gain hunger/happy
+    eatFood(foodPrices[option][1]);
+    gainHappy(foodPrices[option][2]);
+    goToPage(MainScreen);
+  }
+
+  if (gameInputState.buttons[1].isRising) {
+    goToPage(MainScreen);
+  }
+}
+void handleGiftMenu(){
+  goToPage(MainScreen);
+}
+void handleGameMenu() {
+  //game menu later
+  goToPage(MainScreen);
+}
+
+//reads input on each tick, need one check per hardware element
 static void uiInputTick()
 {
+  //switches
   for(int i = 0; i < SwitchCount; ++i )
     gameInputState.switches[i] = digitalRead(Switches[i]);
+
+  //buttons
   for(int i = 0; i < ButtonCount; ++i )
   {
     // Only look for Rising Edge Signals.
@@ -139,230 +292,83 @@ static void uiInputTick()
     gameInputState.buttons[i].state = digitalRead(Buttons[i]);
     gameInputState.buttons[i].isRising = (!previousState && gameInputState.buttons[i].state);
   }
-  
+
+  //potentiometer
   gameInputState.potentiometer = analogRead(Potentiometer);
-  if(ShakeIsShaking())
-    Serial.println("test");
-  Serial.println("Blue");
-  Serial.println(BLUE_LED);
-  Serial.println("Red");
-  Serial.println(RED_LED);
-  Serial.println("Green");
-  Serial.println(GREEN_LED);
-}
 
-void buttonPress()
-{
-  if(gameInputState.buttons[0].isRising)
-  {
-    OrbitOledClearBuffer();
-    OrbitOledClear();
-//    OrbitOledMoveTo(5,0);
-//    OrbitOledDrawChar(gameInputState.switches[0]);
-//    OrbitOledMoveTo(10,15);
-//    OrbitOledDrawChar(gameInputState.switches[1]);
-
-
-    drawHunger(3);
-    OrbitOledUpdate();
-  }
-  else if(gameInputState.buttons[1].isRising)
-  {
-    OrbitOledClearBuffer();
-    OrbitOledClear();
-//    OrbitOledMoveTo(5,0);
-//    OrbitOledDrawChar(gameInputState.switches[0]);
-//    OrbitOledMoveTo(10,15);
-//    OrbitOledDrawChar(gameInputState.switches[1]);
-    drawHappy(3);
-    OrbitOledUpdate();
-  }
-}
-/*
-static void handlePageProgressBar()
-{
-  static uint32_t progress = 0;
-  if(0 == (progress = (1+progress) % 100))
-  {
-    OrbitOledClear();
-  }
-  OrbitOledMoveTo(30, 24);
-  OrbitOledDrawString("Loading...");
   
-  OrbitOledMoveTo(14, 14);
-  OrbitOledSetFillPattern(OrbitOledGetStdPattern(iptnBlank));
-  OrbitOledSetDrawMode(modOledAnd);
-  OrbitOledFillRect(14 + progress, 16);
-  
-  OrbitOledMoveTo(14 + progress, 14);
-  OrbitOledSetFillPattern(OrbitOledGetStdPattern(iptnSolid));
-  OrbitOledSetDrawMode(modOledSet);
-  OrbitOledFillRect(14 + progress + 10, 16);
+//  player.hunger++;
+//  //Max integer: 2147483647
+//  Serial.println(player.hunger);
+//  struct PlayerStats
+//{
+
 }
 
-static void handlePageRollPlayer()
-{
-  OrbitOledMoveTo(0, 0);
-  OrbitOledDrawString("Player ");
-  OrbitOledDrawChar('1' + activeGame.playerIndex);
-  OrbitOledDrawString(" - Shake!");
-  
-  if(ShakeIsShaking())
-  {
-    activeGame.isRolling = true;
-  }
-  else if(activeGame.isRolling)
-  {
-    delay(1000);
-    activeGame.isRolling = false;
-    activeGame.playerActions[activeGame.playerIndex++] = (enum Action)(rand() % ActionCount);
-  }
-
-  if(activeGame.playerIndex == activeGame.playerCount)
-  {
-    OrbitOledClearBuffer();
-    OrbitOledClear();
-    activeGame.playerIndex = 0;
-    gameUiPage = GameResult;
+void handleGameOver(){
+  gameOverGraphics();
+  OrbitOledUpdate();
+  if (gameInputState.buttons[0].isRising||gameInputState.buttons[1].isRising) {
+    dead=false;
+    player={Egg,5,0,5,0,0,0,0};
+    goToPage(MainScreen);
   }
 }
 
-static void handlePageSelectPlayers()
-{
-  OrbitOledMoveTo(5, 0);
-  OrbitOledDrawString("Use Switches For");
-  
-  OrbitOledMoveTo(10, 15);
-  OrbitOledDrawString("# of Players");
-
-  if(gameInputState.buttons[0].isRising)
+void handleGameStart(){
+  gameStartEgg();
+  for(int i=2000;i>1;i/=2)
   {
-    OrbitOledClearBuffer();
-    OrbitOledClear();
-    activeGame.playerCount = 2 * (gameInputState.switches[1] ? 1 : 0) + 
-                             1 * (gameInputState.switches[0] ? 1 : 0) + 
-                             2;
-    gameUiPage = RollPlayer;
+    digitalWrite(GREEN,LOW);
+    digitalWrite(RED,HIGH);
+    delay(i);
+    digitalWrite(RED,LOW);
+    digitalWrite(GREEN,HIGH);
+    delay(i);
   }
+  gameStartHatch();
+  delay(1300);
+  player.age=Baby;
+  goToPage(MainScreen);
 }
 
-static void handlePageWelcome()
-{
-  OrbitOledMoveTo(5, 0);
-  OrbitOledDrawString("Welcome to RPS");
-  
-  OrbitOledMoveTo(10, 15);
-  OrbitOledDrawString("Press BTN1");
-
-  if(gameInputState.buttons[0].isRising)
-  {
-    OrbitOledClearBuffer();
-    OrbitOledClear();
-    gameUiPage = SelectPlayers;
-  }
-}
-
-static void uiInputTick()
-{
-  for(int i = 0; i < SwitchCount; ++i )
-    gameInputState.switches[i] = digitalRead(Switches[i]);
-  for(int i = 0; i < ButtonCount; ++i )
-  {
-    // Only look for Rising Edge Signals.
-    bool previousState = gameInputState.buttons[i].state;
-    gameInputState.buttons[i].state = digitalRead(Buttons[i]);
-    gameInputState.buttons[i].isRising = (!previousState && gameInputState.buttons[i].state);
-  }
-  gameInputState.potentiometer = analogRead(Potentiometer);
-}
-
-
-bool rpsDidILose(int a, int b)
-{
-  return (a < b) || (a == Scissor && b == Rock);
-}
-
-static void handlePageGameResult()
-{
-  OrbitOledMoveTo(0, 0);
-  OrbitOledDrawString("Results");
-
-  // Find a loser.
-  int lossCount[activeGame.playerCount];
-  memset(lossCount, 0, sizeof(int) * activeGame.playerCount);
-  for(int i = 0; i < activeGame.playerCount; ++i)
-  {
-    for(int j = i; j < activeGame.playerCount; ++j)
-    {
-      lossCount[i] += rpsDidILose(activeGame.playerActions[i], activeGame.playerActions[j]) ? 1 : 0;
-      lossCount[j] += rpsDidILose(activeGame.playerActions[j], activeGame.playerActions[i]) ? 1 : 0;
-    }
-  }
-  int maxIndex = 0, maxValue = lossCount[0];
-  for(int i = 1; i < activeGame.playerCount; ++i)
-  {
-    if( maxValue < lossCount[i] )
-    {
-      maxIndex = i;
-      maxValue = lossCount[i];
-    }
-  }
-  
-  OrbitOledMoveTo(0, 10);
-  OrbitOledDrawChar('P');
-  OrbitOledDrawChar('1' + maxIndex);
-  OrbitOledDrawString(" lost.");
-  
-  OrbitOledMoveTo(0, 20);
-  for(int i = 0; i < activeGame.playerCount; ++i)
-  {
-    switch(activeGame.playerActions[i])
-    {
-    case Rock:
-      OrbitOledDrawChar('R');
-      break;
-    case Paper:
-      OrbitOledDrawChar('P');
-      break;
-    case Scissor:
-      OrbitOledDrawChar('S');
-      break;
-    }
-  }
-  
-  if(gameInputState.buttons[0].isRising)
-  {
-    OrbitOledClearBuffer();
-    OrbitOledClear();
-    gameUiPage = Welcome;
-  }
-}
-
+//changes game state on each tick
 void GameUITick()
 {
   uiInputTick();
-  switch(gameUiPage)
-  {
-  case Welcome:
-    handlePageWelcome();
+
+  switch(gameUiPage) {
+
+  case StartScreen:
+    handleGameStart();
     break;
 
-  case SelectPlayers:
-    handlePageSelectPlayers();
+  case ShopMenu:
+    handleShopMenu();
     break;
 
-  case RollPlayer:
-    handlePageRollPlayer();
+  case FoodMenu:
+    handleFoodMenu();
     break;
 
-  case GameResult:
-    handlePageGameResult();
+  case GiftMenu:
+    handleGiftMenu();
     break;
 
-  default:
-    handlePageProgressBar();
+  case GameMenu:
+    handleGameMenu();
+    break;
+
+  case MainScreen:
+    handleMainScreen();
+    break;
+
+  case GameOver:
+    handleGameOver();
     break;
   }
   OrbitOledUpdate();
-}*/
+}
+
+
 
