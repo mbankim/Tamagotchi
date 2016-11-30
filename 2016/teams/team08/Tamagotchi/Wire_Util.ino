@@ -3,9 +3,9 @@
 #include <Wire.h>
 
 /**
- * You need to use your own Instance of the TwoWire Object (instead of the standard `Wire`)
- * because they communicate over the wrong pins!
- */
+   You need to use your own Instance of the TwoWire Object (instead of the standard `Wire`)
+   because they communicate over the wrong pins!
+*/
 static TwoWire orbitWire(0);
 
 void WireInit()
@@ -29,19 +29,19 @@ void WireWriteRegister(int address, uint8_t reg, uint8_t value)
 }
 
 /**
- * WireRequestArray(int address, uint32_t* buffer, uint8_t amount)
- * 
- * address - I2C Address of Chip
- * buffer - Buffer to store data
- * amount - Bytes of information to store!
- */
+   WireRequestArray(int address, uint32_t* buffer, uint8_t amount)
+
+   address - I2C Address of Chip
+   buffer - Buffer to store data
+   amount - Bytes of information to store!
+*/
 void WireRequestArray(int address, uint32_t* buffer, uint8_t amount)
 {
   orbitWire.requestFrom(address, amount);
-  do 
+  do
   {
-    while(!orbitWire.available());
+    while (!orbitWire.available());
     *(buffer++) = orbitWire.read();
-  } while(--amount > 0);
+  } while (--amount > 0);
 }
 
