@@ -15,6 +15,8 @@ const uint32_t Switches[2] = { PA_7, PA_6 };  //List of switches to be used
 const uint32_t Buttons[2] = {PE_0, PD_2 };   //List of Buttons to be used
 const uint32_t Potentiometer = PE_3;
 const float PotentiometerMaxValue = 4095;
+const uint8_t screenSizeY = 32;
+const uint8_t screenSizeX = 128;
 #define RED RED_LED
 #define GREEN GREEN_LED
 
@@ -32,7 +34,7 @@ const uint8_t JumpGame      = 8;  //Jump game
 uint32_t gameUiPage = StartScreen;
 
 //--------------------- Game Constants ---------------------
-const uint32_t startingCash = 9999;
+const uint32_t startingCash = 0;
 
 //Evolution stages
 const uint8_t BABY = 1;
@@ -42,13 +44,14 @@ const uint8_t SENIOR = 4;
 
 //Time tickers (for timing hunger, happiness, toilet, and old age death)
 //Approximately 175 loops per second
-const uint32_t secondTick = 3;
+const uint32_t secondTick = 175;
 const uint32_t hungerLimit = secondTick * 60 * 5; //5 minutes
 const uint32_t happyLimit = secondTick * 60 * 7; //7 minutes
 const uint32_t toiletLimit = secondTick * 60 * 8; //8 minutes
 const uint32_t oldAgeLimit = secondTick * 60 * 5; //After evolving to old person, only 5 minutes before they pass away
 
 const uint32_t toiletShakeRequire = 50; //Shake for a bit before cleaning toilet
+const uint32_t minigame_moneyMod = 50;  //Each level of any minigame gives $50. Bonus for clearing all levels.
 
 //If any of the following are reached, the pet dies
 const int HUNGER_MIN = 0;
@@ -60,10 +63,10 @@ const uint32_t TOILET_MAX = 8;
 const uint32_t foodPrices[6][3] = {
   {100, 1, 0}, //milk
   {200, 2, 0}, //bread
-  {300, 2, 1}, //pie
-  {400, 2, 1}, //cherries
+  {400, 1, 2}, //pie
+  {300, 1, 1}, //cherries
   {600, 3, 2}, //burger
-  {200, 1, 1}  //drink
+  {200, 0, 1}  //drink
 };
 //Gifts: {price, happy increase}
 const uint32_t giftPrices[6][2] = {
@@ -212,7 +215,6 @@ void goToPage(int page) {
   OrbitOledClear();
   gameUiPage = page;
 }
-
 void handleMainScreen() {
   StatsTick();
 
@@ -330,6 +332,7 @@ void handleGameMenu() {
     goToPage(DanceGame);
   }
   else if (gameInputState.buttons[0].isRising && option == 1) {
+    initJumpGame();
     goToPage(JumpGame);
   }
 
@@ -339,15 +342,19 @@ void handleGameMenu() {
 }
 
 void handleDanceGame() {
-  uint8_t reward = danceGame();
-  if (reward) {
-    player.money += reward;
+  int reward = danceGame();
+  if (reward != 1) {
+    player.money += minigame_moneyMod*reward;
     gameUiPage = MainScreen;
   }
 }
 
 void handleJumpGame() {
-  goToPage(MainScreen);
+  int8_t reward = jumpGame();
+  if (reward != 1) {
+    player.money += minigame_moneyMod*reward;
+    gameUiPage = MainScreen;
+  }
 }
 
 

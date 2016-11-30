@@ -1086,7 +1086,7 @@ void foodAnimations(int option, int age) {
   }
 
   drawPet(age, 56, 15, 2);
-  OrbitOledUpdate(); //Don't clear screen here - just draw open mouth
+  updateScreen(); //Don't clear screen here - just draw open mouth
   delay(500);
 
   drawPet(age, 56, 15, 0);
@@ -1097,6 +1097,8 @@ void foodAnimations(int option, int age) {
 
 void giftAnimations(int option, int age) {
   //Animate the pet using the gift based on the given option
+  OrbitOledClear();
+  OrbitOledUpdate();
   for (int i = 0; i < 3; i++) {
 
     switch (option) {
@@ -1160,23 +1162,6 @@ void drawHurdle(int x, int hurdleHeight) {
   for (int j = 0; j < hurdleHeight; j++) {
     OrbitOledMoveTo(x, 32 - j);
     OrbitOledDrawPixel();
-  }
-}
-
-int checkPetBit(int age, int xcor, int ycor) {
-  switch (age) {
-    case 0:
-      return (egg[xcor] & 1 << (15 - ycor)) ? 1 : 0;
-    case 1:
-      return (baby[xcor] & 1 << (15 - ycor)) ? 1 : 0;
-    case 2:
-      return (teen[xcor] & 1 << (15 - ycor)) ? 1 : 0;
-    case 3:
-      return (adult[xcor] & 1 << (15 - ycor)) ? 1 : 0;
-    case 4:
-      return (senior[xcor] & 1 << (15 - ycor)) ? 1 : 0;
-    default:
-      return 0;
   }
 }
 
