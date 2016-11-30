@@ -1,3 +1,8 @@
+//Tamagotchi
+//Matthew Ban Kim and Shela Qiu
+//Some elements borrowed from Rollen's RPS project
+//SE101 summative project
+
 #include <FillPat.h>
 #include <LaunchPad.h>
 #include <OrbitBoosterPackDefs.h>
@@ -5,7 +10,6 @@
 #include <OrbitOledChar.h>
 #include <OrbitOledGrph.h>
 #include <stdlib.h>
-#include<limits.h>
 
 void WireInit();
 void GameUIInit();
@@ -16,7 +20,7 @@ void GameUITick();
 
 extern const uint32_t Potentiometer;
 
-void setup() 
+void setup()
 {
   WireInit();
   Serial.begin(9600);
@@ -26,22 +30,13 @@ void setup()
   ShakeInit();
   GameUIInit();
 
-//  EggInit();
-  
-
   // Read some analog signal and scale it arbitrarily
-  // for random seed.
-  srand((7+analogRead(Potentiometer)) * 347);
+  // for random seed (random seed used in minigames).
+  srand((7 + analogRead(Potentiometer)) * 347);
 }
 
-void loop() 
+void loop()
 {
-  //uiInputTick();
-//  buttonPress();
-  //
-  
-  //drawSomething();
-//  OrbitOledUpdate();
   ShakeTick();
   GameUITick();
 }

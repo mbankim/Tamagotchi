@@ -2,68 +2,46 @@
 #include <string.h>
 
 /*
- * void OrbitOledSetDrawColor(char clr);
-void  OrbitOledSetDrawMode(int mod);
-int   OrbitOledGetDrawMode();
-char *  OrbitOledGetStdPattern(int ipat);
-void  OrbitOledSetFillPattern(char * pbPat);
-
-void  OrbitOledMoveTo(int xco, int yco);
-void  OrbitOledGetPos(int * pxco, int * pyco);
-void  OrbitOledDrawPixel();
-char  OrbitOledGetPixel();
-void  OrbitOledLineTo(int xco, int yco);
-void  OrbitOledDrawRect(int xco, int yco);
-void  OrbitOledFillRect(int xco, int yco);
-void  OrbitOledGetBmp(int dxco, int dyco, char * pbBmp);
-void  OrbitOledPutBmp(int dxco, int dyco, char * pbBmp);
-void  OrbitOledPutBmpFlipped(int dxco, int dyco, char * pbBmp);
-void  OrbitOledDrawChar(char ch);
-void  OrbitOledDrawString(char * sz);
-
- */
-/*Graphics
--egg
--eggHatch
--baby
--baby_open
--baby_animate
--teen
--teen_open
--teen_animate
--adult
--adult_open
--adult_animate
--senior
--senior_open
--heartWings
--poo
--milk
--bread
--pie
--cherries
--burger
--drink
--film
--dumbbells
--joystick
--baseball
--headphones
--TV_animate1
--TV_animate2
--joystick_animate1
--joystick_animate2
--joystick_animateScreen1
--joystick_animateScreen2
--music_animate1
--music_animate2
--heartEmpty
--heartFull
--starEmpty
--starFull
+ * List of all Graphics (16x16 pixel images stored in binary form)
+  -egg
+  -eggHatch
+  -baby
+  -baby_open
+  -baby_animate
+  -teen
+  -teen_open
+  -teen_animate
+  -adult
+  -adult_open
+  -adult_animate
+  -senior
+  -senior_open
+  -heartWings
+  -poo
+  -milk
+  -bread
+  -pie
+  -cherries
+  -burger
+  -drink
+  -film
+  -dumbbells
+  -joystick
+  -baseball
+  -headphones
+  -TV_animate1
+  -TV_animate2
+  -joystick_animate1
+  -joystick_animate2
+  -joystick_animateScreen1
+  -joystick_animateScreen2
+  -music_animate1
+  -music_animate2
+  -heartEmpty
+  -heartFull
+  -starEmpty
+  -starFull
 */
-
-//Screen is 128x32 pixels
 
 int empty[16] = {
   0b0000000000000000,
@@ -831,419 +809,400 @@ int starEmpty[16] = {
   0b0001000000000000
 };
 
-
-void drawGraphic(int a[16] , int x, int y){
-  for(int i=0;i<16;i++)
-  for(int j=0;j<16;j++)
-  {
-    if(a[i] & 1 << j)
+//--------------------- Helper Functions ---------------------
+//Used to draw the images stored in the arrays, given an x and y position
+void drawGraphic(int a[16] , int x, int y) {
+  for (int i = 0; i < 16; i++)
+    for (int j = 0; j < 16; j++)
     {
-      OrbitOledMoveTo(x+(15-j),y+i);
-      OrbitOledDrawPixel();
+      if (a[i] & 1 << j)
+      {
+        OrbitOledMoveTo(x + (15 - j), y + i);
+        OrbitOledDrawPixel();
+      }
     }
+}
+
+void drawString(char* s, int x, int y){
+  OrbitOledMoveTo(x,y);
+  OrbitOledDrawString(s);
+}
+
+//This is mostly for animations rather than static screen updates
+void updateScreen(){
+  OrbitOledUpdate();
+  OrbitOledClearBuffer();
+}
+
+//--------------------- Stats Graphics ---------------------
+//Draws empty/full hearts based on hunger stats
+void drawHunger(int full) {
+  drawString("Hungry",5,0);
+  
+  int x = 5, y = -1;
+  for (int i = 0; i < full; i++)
+    drawGraphic(heartFull ,  x + i * 9,  y);
+  for (int i = full; i < 5; i++)
+    drawGraphic(heartEmpty ,  x + full * 9 + (i - full) * 9,  y);
+}
+
+//Draws empty/full diamonds based on happiness stats
+void drawHappy(int full) {
+  drawString("Happy",5,17);
+  
+  int x = 5, y = 16;
+  if (full < 0)
+    full = 0;
+
+  for (int i = 0; i < full; i++)
+    drawGraphic(starFull ,  x + i * 9,  y);
+  if (full < 0)
+    full = 0;
+  for (int i = full; i < 5; i++)
+    drawGraphic(starEmpty ,  x + full * 9 + (i - full) * 9,  y);
+}
+
+//Draws poos
+void drawToilet(int toiletCount) {
+  for (int i = 0; i < toiletCount; i++) {
+    if (i < 4)
+      drawGraphic(poo ,  55,  16 - i * 8);
+    else
+      drawGraphic(poo ,  65,  16 - (i - 4) * 8);
   }
 }
 
-void DrawMainScreen(int hunger, int happy, int money, int toilet, int age){
-  OrbitOledMoveTo(55, -1);
+//Draws cash in top righthand of screen
+void drawMoney(int money) {
+  char str[10];
+  sprintf(str, "$%d", money);
+  drawString(str,128 - strlen(str) * 8,0);
+}
+
+//--------------------- Character Graphics ---------------------
+//Chooses which character to draw based on its age, given an x and y coordinate
+//Mode: 0 normal, 1 animation frame, 2 open mouth (eating)
+void drawPet(int age, int x, int y, int mode) {
+  switch (age) {
+    case 0:
+      if (mode == 0)
+        drawGraphic(egg ,  x,  y);
+      else if (mode == 1)
+        drawGraphic(eggHatch,  x,  y);
+      break;
+    case 1:
+      if (mode == 0)
+        drawGraphic(baby ,  x,  y);
+      else if (mode == 1)
+        drawGraphic(baby_animate,  x,  y);
+      else if (mode == 2)
+        drawGraphic(baby_open, x, y);
+      break;
+    case 2:
+      if (mode == 0)
+        drawGraphic(teen ,  x,  y);
+      else if (mode == 1)
+        drawGraphic(teen_animate,  x,  y);
+      else if (mode == 2)
+        drawGraphic(teen_open, x, y);
+      break;
+    case 3:
+      if (mode == 0)
+        drawGraphic(adult ,  x,  y);
+      else if (mode == 1)
+        drawGraphic(adult_animate,  x,  y);
+      else if (mode == 2)
+        drawGraphic(adult_open, x, y);
+      break;
+    case 4:
+      if (mode == 0)
+        drawGraphic(senior ,  x,  y);
+      else if (mode == 1)
+        drawGraphic(senior_animate,  x,  y);
+      else if (mode == 2)
+        drawGraphic(senior_open, x, y);
+      break;
+  }
+}
+
+//--------------------- Screen Graphics (menus, main screen) ---------------------
+void DrawMainScreen(int hunger, int happy, int money, int toilet, int age) {
+  //Divider
+  OrbitOledMoveTo(55, -1); 
   OrbitOledLineTo(55, 32);
 
+  //Stats
   drawHunger(hunger);
   drawHappy(happy);
   drawMoney(money);
   drawToilet(toilet);
 
-  int characterX=93;
-  int characterY=15;
-  drawPet(age, characterX, characterY,0);
+  //Character
+  drawPet(age, 93, 15, 0);
+
+  OrbitOledUpdate();
 }
 
-void drawHunger(int full){
-  OrbitOledMoveTo(5, 0);
-  OrbitOledDrawString("Hungry\n");
-  int x=5,y=-1;
-  
-  for(int i=0;i<full;i++)
-    drawGraphic(heartFull ,  x+i*9,  y);
-  for (int i=full;i<5;i++)
-    drawGraphic(heartEmpty ,  x+full*9+(i-full)*9,  y);
+//Draw shop menu with arrow beside the current chosen option
+void displayShopMenu(int option){
+  int x = 11, y1 = 5, y2 = 18, offset = 9; 
+  drawString("Food",x,y1);
+  drawString("Gifts",x,y2);
+
+  //display the arrow
+  OrbitOledMoveTo(x - offset, (option == 0 ? y1 : y2));
+  OrbitOledDrawChar('>');
 }
 
-void drawHappy(int full){
-  OrbitOledMoveTo(5, 17);
-  OrbitOledDrawString("Happy\n");
-  int x=5,y=16;
-
-  if(full<0)
-    full=0;
-  
-  for(int i=0;i<full;i++)
-    drawGraphic(starFull ,  x+i*9,  y);
-  if(full<0)
-    full=0;
-  for (int i=full;i<5;i++)
-    drawGraphic(starEmpty ,  x+full*9+(i-full)*9,  y);
-}
-
-void drawToilet(int toiletCount){
-  
-  for(int i=0;i<toiletCount;i++){
-    if(i<4)
-      drawGraphic(poo ,  55,  16-i*8);
-    else
-      drawGraphic(poo ,  65,  16-(i-4)*8);
-  }
-}
-
-void drawMoney(int money){
-  char str[10];
-  sprintf(str,"$%d",money);
-
-  OrbitOledMoveTo(128-strlen(str)*8,0);
-  
-  OrbitOledDrawString(str);
-}
-
-void displayFood(int option, int price, int hungerVal, int happyVal){
-  int y=10;
-  int x=10;
+//Draw food menu with arrow under the current chosen option
+void displayFood(int option, int price, int hungerVal, int happyVal) {
+  int y = 10;
+  int x = 10;
   drawGraphic(milk ,  x,  y);
-  drawGraphic(bread ,  x+20,  y);
-  drawGraphic(pie ,  x+40,  y);
-  drawGraphic(cherries ,  x+60,  y);
-  drawGraphic(burger ,  x+80,  y);
-  drawGraphic(drink ,  x+100,  y);
+  drawGraphic(bread ,  x + 20,  y);
+  drawGraphic(pie ,  x + 40,  y);
+  drawGraphic(cherries ,  x + 60,  y);
+  drawGraphic(burger ,  x + 80,  y);
+  drawGraphic(drink ,  x + 100,  y);
 
+  //Display stats of current option
   char str[2];
-  sprintf(str,"%d",hungerVal);
-
-  OrbitOledMoveTo(0,0);
-  OrbitOledDrawString(str);
+  sprintf(str, "%d", hungerVal);
+  drawString(str,0,0);
   drawGraphic(heartFull ,  8,  -9);
-  OrbitOledMoveTo(17,0);
-  sprintf(str,"%d",happyVal);
-  OrbitOledDrawString(str);
+  
+  sprintf(str, "%d", happyVal);
+  drawString(str,17,0);
   drawGraphic(starFull ,  25,  -9);
 
-  OrbitOledMoveTo(14+option*20,28);
-  OrbitOledDrawChar('^');
-
   drawMoney(price);
+
+  //Display which option is currently selected
+  OrbitOledMoveTo(14 + option * 20, 28);
+  OrbitOledDrawChar('^');
 }
 
-void displayGifts(int option, int price, int happyVal, int age){
-  int y=10;
-  int x=10;
+//Draw gift menu with arrow under the current chosen option
+void displayGifts(int option, int price, int happyVal, int age) {
+  int y = 10;
+  int x = 10;
   drawGraphic(film ,  x,  y);
-  drawGraphic(dumbbells ,  x+20,  y);
-  drawGraphic(joystick ,  x+40,  y);
-  drawGraphic(headphones ,  x+60,  y);
-  drawGraphic(baseball ,  x+80,  y);
-  drawPet(age+1 ,  x+100,  y,0);
+  drawGraphic(dumbbells ,  x + 20,  y);
+  drawGraphic(joystick ,  x + 40,  y);
+  drawGraphic(headphones ,  x + 60,  y);
+  drawGraphic(baseball ,  x + 80,  y);
+  drawPet(age + 1 ,  x + 100,  y, 0);
 
+  //Draw stats of current option
   char str[2];
-  sprintf(str,"%d",happyVal);
-  OrbitOledMoveTo(0,0);
-  OrbitOledDrawString(str);
+  sprintf(str, "%d", happyVal);
+  drawString(str,0,0);
   drawGraphic(starFull ,  8,  -9);
-
-  OrbitOledMoveTo(14+option*20,28);
-  OrbitOledDrawChar('^');
-
+  
   drawMoney(price);
+
+  //Draw currently selected option
+  OrbitOledMoveTo(14 + option * 20, 28);
+  OrbitOledDrawChar('^');
 }
 
-void gameOverGraphics(){
-  OrbitOledMoveTo(13, 0);
-  OrbitOledDrawString("Your pet died!");
-  OrbitOledMoveTo(20, 12);
-  OrbitOledDrawString("Press button ");
-  OrbitOledMoveTo(16, 22);
-  OrbitOledDrawString("to start over");
+//Draw game menu with arrow beside the current chosen option
+void displyGameMenu(int option){
+  int x = 11, y1 = 5, y2 = 18, offset = 9; 
+
+  drawString("Dance",x,y1);
+  drawString("Jump",x,y2);
+
+  //display the arrow
+  OrbitOledMoveTo(x - offset, (option == 0 ? y1 : y2));
+  OrbitOledDrawChar('>');
 }
 
-void gameStartEgg(){
-  OrbitOledClearBuffer();
-  OrbitOledClear();
-  drawPet(0 ,  56,  8,0); //draw egg
-  OrbitOledUpdate();
+//--------------------- Game start and game end animations ---------------------
+//Draw egg
+void DrawGameStartEgg() {
+  drawPet(0 ,  56,  8, 0); //draw egg
+  updateScreen();
 }
 
-void gameStartHatch(){
-  OrbitOledClearBuffer();
-  OrbitOledClear();
+//Egg hatching
+void DrawGameStartHatch() {
+  updateScreen();
   delay(500);
-  drawPet(0 ,  56,  8,1); //draw eggHatch
-  OrbitOledUpdate();
+  drawPet(0 ,  56,  8, 1); //draw eggHatch
+  updateScreen();
   delay(1000);
-  OrbitOledClearBuffer();
-  OrbitOledClear();
-  OrbitOledUpdate();
+  updateScreen();
   delay(500);
-  drawPet(1 ,  56,  8,0); //draw baby
-  OrbitOledUpdate();
+  drawPet(1 ,  56,  8, 0); //draw baby
+  updateScreen();
   delay(1000);
 }
 
-void drawPet(int age, int x, int y, int mode) {
-  switch(age){
-     case 0:
-       if(mode==0)
-        drawGraphic(egg ,  x,  y);
-       else if(mode==1)
-         drawGraphic(eggHatch,  x,  y); 
-     break;
-     case 1:
-       if(mode==0)
-        drawGraphic(baby ,  x,  y);
-       else if(mode==1)
-         drawGraphic(baby_animate,  x,  y); 
-       else if(mode==2)
-         drawGraphic(baby_open, x, y);
-     break;
-     case 2:
-       if(mode==0)
-        drawGraphic(teen ,  x,  y);
-       else if(mode==1)
-         drawGraphic(teen_animate,  x,  y); 
-       else if(mode==2)
-         drawGraphic(teen_open, x, y);
-     break;
-     case 3:
-       if(mode==0)
-        drawGraphic(adult ,  x,  y);
-       else if(mode==1)
-         drawGraphic(adult_animate,  x,  y); 
-       else if(mode==2)
-         drawGraphic(adult_open, x, y);
-     break;
-     case 4:
-       if(mode==0)
-        drawGraphic(senior ,  x,  y);
-       else if(mode==1)
-         drawGraphic(senior_animate,  x,  y); 
-       else if(mode==2)
-         drawGraphic(senior_open, x, y);
-     break;
+void gameOverGraphics(bool dead) {
+  if(dead)
+  {
+    drawString("Your pet died!",13,0);
+    drawString("Press button",20,13);
+    drawString("to start over",16,23);
+  }
+  else
+  {
+    drawGraphic(heartWings ,  56,  -4);
+    drawString("Press button",20, 13);
+    drawString("to start over",16,23);
   }
 }
 
+//--------------------- Animations for things that are bought from the shops ---------------------
+void foodAnimations(int option, int age) {
+  //Food moves down the screen and the pet eats it
+  for (int i = 0; i < 15; i++) {
+    drawPet(age, 56, 15, 0);
+
+    switch (option) {
+      case 0: //milk
+        drawGraphic(milk ,  72,  i);
+        break;
+      case 1: //bread
+        drawGraphic(bread ,  72,  i);
+        break;
+      case 2: //pie
+        drawGraphic(pie ,  72,  i);
+        break;
+      case 3: //cherries
+        drawGraphic(cherries ,  72,  i);
+        break;
+      case 4: //burger
+        drawGraphic(burger ,  72,  i);
+        break;
+      case 5: //drink
+        drawGraphic(drink ,  72,  i);
+        break;
+    }
+
+    updateScreen();
+    delay(100);
+  }
+
+  drawPet(age, 56, 15, 2);
+  OrbitOledUpdate(); //Don't clear screen here - just draw open mouth
+  delay(500);
+
+  drawPet(age, 56, 15, 0);
+  updateScreen();
+  delay(700);
+}
+
+
+void giftAnimations(int option, int age) {
+  //Animate the pet using the gift based on the given option
+  for (int i = 0; i < 3; i++) {
+
+    switch (option) {
+      case 0: //film
+        drawGraphic(TV_animate1, 70, 0);
+        break;
+      case 1: //dumbbells
+        drawGraphic(dumbbells, 68, 0);
+        break;
+      case 2: //joystick
+        drawGraphic(joystick_animate1, 71, 15);
+        drawGraphic(joystick_animateScreen1, 70, 0);
+        break;
+      case 3: //headphones
+        drawGraphic(music_animate1, 82, -2);
+        drawGraphic(music_animate2, 68, 5);
+        break;
+      case 4: //baseball
+        drawGraphic(baseball, 68, 0);
+        break;
+    }
+    if (option != 5)
+      drawPet(age, 50, 10, 0);
+    else
+      drawPet(age, 56, 10, 0);
+    updateScreen();
+    delay(500);
+
+    switch (option) {
+      case 0: //film
+        drawGraphic(TV_animate2, 70, 0);
+        break;
+      case 1: //dumbbells
+        drawGraphic(dumbbells, 68, 7);
+        break;
+      case 2: //joystick
+        drawGraphic(joystick_animate2, 71, 15);
+        drawGraphic(joystick_animateScreen2, 70, 0);
+        break;
+      case 3: //headphones
+        drawGraphic(music_animate2, 82, -2);
+        drawGraphic(music_animate1, 68, 5);
+        break;
+      case 4: //baseball
+        drawGraphic(baseball, 68, 7);
+        break;
+    }
+    if (option != 5)
+      drawPet(age, 50, 10, 1);
+    else
+      drawPet(age + 1, 56, 10, 1);
+    updateScreen();
+    delay(500);
+  }
+}
+
+
+//--------------------- Functions specific to minigames ---------------------
+//Jump Minigame functions
 void drawHurdle(int x, int hurdleHeight) {
-  for(int j = 0; j < hurdleHeight; j++) {
-    OrbitOledMoveTo(x, 32-j);
+  for (int j = 0; j < hurdleHeight; j++) {
+    OrbitOledMoveTo(x, 32 - j);
     OrbitOledDrawPixel();
   }
 }
 
 int checkPetBit(int age, int xcor, int ycor) {
-  switch(age){
-     case 0:
-       return (egg[xcor] & 1 << (15 - ycor)) ? 1 : 0;
-     case 1:
-       return (baby[xcor] & 1 << (15 - ycor)) ? 1 : 0;
-     case 2:
-       return (teen[xcor] & 1 << (15 - ycor)) ? 1 : 0;
-     case 3:
-       return (adult[xcor] & 1 << (15 - ycor)) ? 1 : 0;
-     case 4:
-       return (senior[xcor] & 1 << (15 - ycor)) ? 1 : 0;
-     default:
-       return 0;
+  switch (age) {
+    case 0:
+      return (egg[xcor] & 1 << (15 - ycor)) ? 1 : 0;
+    case 1:
+      return (baby[xcor] & 1 << (15 - ycor)) ? 1 : 0;
+    case 2:
+      return (teen[xcor] & 1 << (15 - ycor)) ? 1 : 0;
+    case 3:
+      return (adult[xcor] & 1 << (15 - ycor)) ? 1 : 0;
+    case 4:
+      return (senior[xcor] & 1 << (15 - ycor)) ? 1 : 0;
+    default:
+      return 0;
   }
 }
 
-void foodAnimations(int option, int age){
-  for(int i=0;i<15;i++){
-    OrbitOledClearBuffer();
-    drawPet(age,56,15,0);
-
-    switch(option){
-      case 0: //milk
-        drawGraphic(milk ,  72,  i);
-      break;
-      case 1: //bread
-        drawGraphic(bread ,  72,  i);
-      break;
-      case 2: //pie
-        drawGraphic(pie ,  72,  i);
-      break;
-      case 3: //cherries
-        drawGraphic(cherries ,  72,  i);
-      break;
-      case 4: //burger
-        drawGraphic(burger ,  72,  i);
-      break;
-      case 5: //drink
-        drawGraphic(drink ,  72,  i);
-      break;
-    }
-
-    OrbitOledUpdate();
-    delay(100);
-  }
-  
-    drawPet(age,56,15,2);
-    OrbitOledUpdate();
+//Dance Minigame functions
+void animateDance(uint8_t pattern) {
+  switch(pattern) {
+  case 0:
+    OrbitOledMoveTo(5,5);
+    OrbitOledDrawString("A");
+    drawPet(player.age, 56, 15, 1);
+    updateScreen();
     delay(500);
-  
-    OrbitOledClearBuffer();
-    drawPet(age,56,15,0);
-    OrbitOledUpdate();
-    delay(700);
-  }
-
-
-void giftAnimations(int option, int age){
-    for (int i = 0; i < 3; i++) {
-    OrbitOledClearBuffer();
-
-    switch(option){
-      case 0: //film
-        drawGraphic(TV_animate1,70,0);
-      break;
-      case 1: //dumbbells
-        drawGraphic(dumbbells,68,0);
-      break;
-      case 2: //joystick
-        drawGraphic(joystick_animate1,71,15);
-        drawGraphic(joystick_animateScreen1,70,0);
-      break;
-      case 3: //headphones
-        drawGraphic(music_animate1,82,-2);
-        drawGraphic(music_animate2,68,5);
-      break;
-      case 4: //baseball
-        drawGraphic(baseball,68,0);
-      break;
-    }
-    if(option!=5)
-      drawPet(age,50,10,0);
-    else
-      drawPet(age,56,10,0);
-    OrbitOledUpdate();
+    break;
+  case 1:
+    OrbitOledMoveTo(40,5);
+    OrbitOledDrawString("B");
+    drawPet(player.age, 56, 15, 1);
+    updateScreen();
     delay(500);
-    
-    OrbitOledClearBuffer();
-    switch(option){
-      case 0: //film
-        drawGraphic(TV_animate2,70,0);
-      break;
-      case 1: //dumbbells
-        drawGraphic(dumbbells,68,7);
-      break;
-      case 2: //joystick
-        drawGraphic(joystick_animate2,71,15);
-        drawGraphic(joystick_animateScreen2,70,0);
-      break;
-      case 3: //headphones
-        drawGraphic(music_animate2,82,-2);
-        drawGraphic(music_animate1,68,5);
-      break;
-      case 4: //baseball
-        drawGraphic(baseball,68,7);
-      break;
-    }
-    if(option!=5)
-      drawPet(age,50,10,1);
-    else
-      drawPet(age+1,56,10,1);
-    OrbitOledUpdate();
+    break;
+  case 2:
+    OrbitOledMoveTo(80,5);
+    OrbitOledDrawString("shake");
+    drawPet(player.age, 56, 15, 1);
+    updateScreen();
     delay(500);
+    break;
   }
 }
-
-
-void drawSomething()
-{
-//  for(int i=0;i<15;i++){
-//    OrbitOledClearBuffer();
-//    drawPet(3,56,15,0);
-//
-//    drawGraphic(milk ,  72,  i);
-////  drawGraphic(bread ,  x+20,  y);
-////  drawGraphic(pie ,  x+40,  y);
-////  drawGraphic(cherries ,  x+60,  y);
-////  drawGraphic(burger ,  x+80,  y);
-////  drawGraphic(drink ,  x+100,  y);
-//
-//      
-//    OrbitOledUpdate();
-//    delay(100);
-//  }
-//
-//  
-//  drawPet(3,56,15,2);
-//  OrbitOledUpdate();
-//  delay(500);
-//
-//  OrbitOledClearBuffer();
-//  drawPet(3,56,15,0);
-//  OrbitOledUpdate();
-//  delay(700);
-
-  
-//displayFood();
-//OrbitOledMoveTo(30,10);
-//drawHunger(3);
-//drawHappy(3);
-//-film
-//-dumbbells
-//-joystick
-//-baseball
-//-headphones
-//-TV_animtae
-//drawGraphic(heartWings ,  10,  10);
-//drawGraphic(teen_animate ,  10+20,  10);
-//drawGraphic(adult ,  30+20,  10);
-//drawGraphic(adult_animate ,  50+20,  10);
-//drawGraphic(senior ,  70+20,  10);
-//drawGraphic(senior_animate ,  90+20,  10);
-//
-//OrbitOledMoveTo(0,5);
-//OrbitOledDrawChar('>');
-//
-//OrbitOledMoveTo(7,5);
-//OrbitOledDrawString("Food\n");
-//OrbitOledMoveTo(7,18);
-//OrbitOledDrawString("Gifts\n");
-//OrbitOledMoveTo(55, 0);
-//OrbitOledLineTo(55, 32);
-//OrbitOledPutBmp(16,8,hi);
-
-//
-//drawGraphic(milk ,  10,  5);
-//  drawGraphic(egg ,  10+20,  5);
-//  drawGraphic(baby ,  30+20,  5);
-//  drawGraphic(teen ,  50+20,  5);
-//  drawGraphic(adult ,  70+20,  5);
-//  drawGraphic(senior ,  90+20,  5);
-//
-//  //int option = gameInputState.potentiometer/(PotentiometerMaxValue/6 + 1.0);
-//  OrbitOledMoveTo(14+0*20,25);
-//  OrbitOledDrawChar('^');
-//  OrbitOledMoveTo(14+1*20,25);
-//  OrbitOledDrawChar('^');
-//  OrbitOledMoveTo(14+2*20,25);
-//  OrbitOledDrawChar('^');
-//  OrbitOledMoveTo(14+3*20,25);
-//  OrbitOledDrawChar('^');
-//  OrbitOledMoveTo(14+4*20,25);
-//  OrbitOledDrawChar('^');
-//  OrbitOledMoveTo(14+5*20,25);
-//  OrbitOledDrawChar('^');
-
-//for(int i=0;i<40;i++)
-//{
-//
-//  OrbitOledClear();
-//drawGraphic(baby ,  30+i,  10);
-//OrbitOledUpdate();
-//delay(100);
-// 
-//}
-  //drawGraphic(test,20,20);
-  //OrbitOledDrawString("Welcome to RPS");
-  OrbitOledUpdate();
-}
-
-
