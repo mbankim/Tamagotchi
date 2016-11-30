@@ -343,16 +343,16 @@ void handleGameMenu() {
 
 void handleDanceGame() {
   int reward = danceGame();
-  if (reward != 1) {
-    player.money += minigame_moneyMod*reward;
+  if (reward != -1) {
+    player.money += reward*minigame_moneyMod;
     gameUiPage = MainScreen;
   }
 }
 
 void handleJumpGame() {
-  int8_t reward = jumpGame();
-  if (reward != 1) {
-    player.money += minigame_moneyMod*reward;
+  int reward = jumpGame();
+  if (reward != -1) {
+    player.money += reward*minigame_moneyMod;
     gameUiPage = MainScreen;
   }
 }
