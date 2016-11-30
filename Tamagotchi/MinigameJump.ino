@@ -34,7 +34,7 @@ void initJumpGame() {
       jump_hurdle[i] = 0;
 }
 
-uint8_t jumpGameEnd() {
+int jumpGameEnd() {
   if (jump_level < jump_maxLevel) {
       drawString("Game Over", 5, 15);
       updateScreen();
@@ -66,7 +66,7 @@ int jump_checkCollision(int age, int xcor, int ycor) {
   }
 }
 
-uint8_t jumpGame() {
+int jumpGame() {
 
   if (jump_slowCount == jump_slowRate - jump_level*2) {
     OrbitOledClearBuffer();
@@ -148,7 +148,7 @@ uint8_t jumpGame() {
     return jumpGameEnd();
   }
     
-  return 1;
+  return -1;
 }
 
 

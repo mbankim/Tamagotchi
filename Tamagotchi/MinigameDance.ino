@@ -30,7 +30,7 @@ void initDanceGame() {
   }
 }
 
-uint8_t danceGameStart() {
+int danceGameStart() {
   dance_start = true;
     
   //Display instructions
@@ -45,10 +45,10 @@ uint8_t danceGameStart() {
   delay(2000);
     
   dance_pattern[0] = rand()%3;
-  return 1;
+  return -1;
 }
 
-uint8_t danceGameEnd() {
+int danceGameEnd() {
   if (dance_lose) {
     drawString("Game Over", 5, 15);
     updateScreen();
@@ -63,7 +63,7 @@ uint8_t danceGameEnd() {
   }
 }
 
-uint8_t danceLevelUp() {
+int danceLevelUp() {
   //game logic
   dance_level++;
   dance_actionCount = 0;
@@ -84,10 +84,10 @@ uint8_t danceLevelUp() {
   //less likely to get same pattern twice in a row (1/9)
   if (dance_pattern[dance_level] == dance_pattern[dance_level-1])
     dance_pattern[dance_level] = rand()%3;
-  return 1;
+  return -1;
 }
 
-uint8_t danceGame() {
+int danceGame() {
     
   //check if the game is starting/ending
   if(!dance_start)
@@ -160,5 +160,5 @@ uint8_t danceGame() {
     }      
 
   }
-  return 1;
+  return -1;
 }
