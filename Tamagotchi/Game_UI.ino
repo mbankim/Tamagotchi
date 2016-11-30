@@ -52,7 +52,12 @@ const uint32_t foodPrices[6][3]={{100,1,0}, //milk
                                  {400,2,1}, //cherries
                                  {600,3,2}, //burger
                                  {200,1,1}}; //drink
-const uint32_t giftSPrices[]={};
+const uint32_t giftPrices[6][2]={{100,1}, //film
+                                 {200,2}, //dumbbells
+                                 {300,1}, //joystick
+                                 {200,3}, //headphones
+                                 {400,2}, //baseball
+                                 {1000,1}}; //evolution
 
 //End game
 bool dead=false;
@@ -253,15 +258,18 @@ void handleFoodMenu() {
     OrbitOledClear();
     GlobalOption = option;
   }
-  displayFood(option, foodPrices[option][0]);
+  displayFood(option, foodPrices[option][0], foodPrices[option][1], foodPrices[option][2]);
   if (gameInputState.buttons[0].isRising) {
     //lose money
     if(player.money>=foodPrices[option][0])
+    {
       player.money-=foodPrices[option][0];
+      eatFood(foodPrices[option][1]);
+      gainHappy(foodPrices[option][2]);
+    }
     //display food
     //isFood = true >> eating animation? >> gain hunger/happy
-    eatFood(foodPrices[option][1]);
-    gainHappy(foodPrices[option][2]);
+    
     goToPage(MainScreen);
   }
 
@@ -270,11 +278,135 @@ void handleFoodMenu() {
   }
 }
 void handleGiftMenu(){
-  goToPage(MainScreen);
+  //display food options
+  //display blablabla
+  int option = gameInputState.potentiometer/(PotentiometerMaxValue/6 + 1.0);
+  if (option != GlobalOption) {
+    OrbitOledClear();
+    GlobalOption = option;
+  }
+  displayGifts(option, giftPrices[option][0], giftPrices[option][1], player.age);
+  if (gameInputState.buttons[0].isRising) {
+    //lose money
+    if(player.money>=giftPrices[option][0])
+    {
+      player.money-=giftPrices[option][0];
+      gainHappy(giftPrices[option][1]);
+    }
+    //display food
+    //isFood = true >> eating animation? >> gain hunger/happy
+    
+    goToPage(MainScreen);
+  }
+
+  if (gameInputState.buttons[1].isRising) {
+    goToPage(MainScreen);
+  }
 }
 void handleGameMenu() {
   //game menu later
   goToPage(MainScreen);
+}
+
+const uint16_t petHeight = 16;
+const uint32_t maxHeight = 0;
+const uint32_t vx = 2;
+const uint16_t hurdleHeight = 8;
+const uint16_t xstart = 5;
+const int slow = 15;
+const int numOfHurdles = 4;
+const int screenSizeY = 32;
+bool isJumping = false;
+uint32_t vy = 0;
+uint32_t y = petHeight;
+int slowcnt = 0;
+int jumpGame = 6;
+int hurdle[numOfHurdles] = {0};
+int hurdleIdx = 0;
+int level = 0;
+
+static void clearGameVar() {
+    //jumpGame
+    isJumping = false;
+    vy = 0;
+    y = petHeight;
+    for(int i = 0; i < numOfHurdles; i++)
+      hurdle[i] = 0;
+    hurdleIdx = 0;
+    slowcnt = 0;
+
+    //All
+    level = 1;
+}
+
+static void handleJumpGame() {
+
+  if (slowcnt == slow-level) {
+  
+    OrbitOledClearBuffer();
+    OrbitOledClear();
+    slowcnt = 0;
+  
+    //jumping
+    if (vy!=0){
+      y-=vy;
+      if (y==petHeight) {
+        vy = 0;
+        isJumping = false;
+      }
+      if (y==maxHeight) vy = -vy;
+    }
+  
+    //hurdle generation
+    
+    if (rand()%30==0 && !hurdle[hurdleIdx]) {
+      hurdle[hurdleIdx] = 128;
+      hurdleIdx = (hurdleIdx+1)%numOfHurdles;
+    }
+
+    //draw pet
+    drawPet(player.age, xstart, y,0);
+
+    //collision detection
+    
+    for(int j = 0; j < numOfHurdles; j++) {
+      if (hurdle[j] >= xstart && xstart+petHeight >= hurdle[j] && y+petHeight >= screenSizeY-hurdleHeight) {
+        for(int i = 0; i < y+petHeight+hurdleHeight-screenSizeY; i++) {
+          if (checkPetBit(player.age, hurdle[j]-xstart, i)) {
+            OrbitOledClear();
+            OrbitOledMoveTo(5, 15);
+            OrbitOledDrawString("Game Over");
+            slowcnt = -1000000;
+            break;
+          }
+        }
+      }
+    }
+
+    //draw hurdle
+    for(int i = 0; i < numOfHurdles; i++) {
+      if (hurdle[i] != 0) {
+        drawHurdle(hurdle[i], hurdleHeight);
+        hurdle[i]-= vx;
+      }
+    }
+  }
+  else
+    slowcnt++;
+
+  if (gameInputState.buttons[0].isRising && !isJumping) {
+    vy = 1;
+    isJumping = true;
+  }
+  else if (gameInputState.buttons[1].isRising) {
+    clearGameVar();
+    handleMainScreen();
+    //handleExitMenu(jumpGame);
+  }
+}
+
+static void handleExitMenu(int game) {
+    //exit menu
 }
 
 //reads input on each tick, need one check per hardware element
@@ -357,6 +489,7 @@ void GameUITick()
 
   case GameMenu:
     handleGameMenu();
+    //handleJumpGame();
     break;
 
   case MainScreen:
