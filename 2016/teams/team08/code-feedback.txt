@@ -1,0 +1,12 @@
+Game_UI.ino @ L83
+    bool dead = false; //Toggle if the game ends
+    Is this comment necessary? instead use:
+    bool isGameOver = false;
+
+Graphics.ino @ L814
+    Should've used a brace.
+
+Use `snprintf` instead of `sprintf`.
+
+Graphics.ino @ L888
+    Maybe a switch here?
