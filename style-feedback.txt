@@ -1,0 +1,3 @@
+score: 9.0
+(-0.5) Inconsistency with brace placement in Game_UI.ino @ line 301 & in MinigameJump.ino @ line 43.
+(-0.5) Inconsistent indentation in MinigameDance.ino & MinigameJump.ino (both 4 and 2 space tabs).
