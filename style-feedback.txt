@@ -1,2 +1,0 @@
-score: 9.5
-(-0.5) Inconsistent indentation in MinigameDance.ino & MinigameJump.ino (both 4 and 2 space tabs).
