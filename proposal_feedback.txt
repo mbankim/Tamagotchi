@@ -1,7 +1,0 @@
-Tentative Difficulty: 3
-
-- JSYK, as you drop features the difficulty drops. The fact that you have a store and evolution puts you in 3.
-  If you drop those, the 'feeding' + 'cleaning' + minigames leaves you at 2.5. Dropping minigames puts you at 2.
-  This scaling should be on par with the other team doing a "pet nursing simulator".
-
-I would play this! :)
